@@ -326,6 +326,17 @@ wss.on('connection', async (ws, req) => {
     const publicHistory = await fetchHistory(PUBLIC_ROOM, PUBLIC_HISTORY_LIMIT);
     ws.send(JSON.stringify({ type: 'history', room: PUBLIC_ROOM, messages: publicHistory }));
 
+    // Restore existing DM threads so they survive a page reload
+    const dmThreads = await fetchDmThreadsForUser(user.id);
+    for (const thread of dmThreads) {
+        ws.send(JSON.stringify({
+            type: 'dm_opened',
+            room: thread.room,
+            with: thread.with,
+            messages: thread.messages
+        }));
+    }
+
     broadcastSystem(PUBLIC_ROOM, `${user.username} joined the room`);
     broadcastOnlineCount();
 
@@ -479,6 +490,47 @@ function relayTyping(user, room) {
         const otherId = parts[1] === user.id ? parts[2] : parts[1];
         sendToUser(otherId, payload);
     }
+}
+
+// Finds every DM room this user has ever sent/received a message in,
+// and returns each with the other participant's info + recent history.
+// This is what lets DM threads survive a page reload.
+async function fetchDmThreadsForUser(userId) {
+    // Pull every dm:* room and filter in JS rather than relying on a
+    // PostgREST .or()/.like() combo with UUIDs embedded in the pattern
+    // (UUIDs contain hyphens, which can be brittle inside filter strings).
+    // Message volume in dm rooms is naturally small (history is pruned to
+    // 13 per thread), so this is cheap even without a DB-side filter.
+    const { data: rows, error } = await supabase
+        .from('messages')
+        .select('room')
+        .like('room', 'dm:%');
+
+    if (error || !rows) return [];
+
+    const roomIds = [...new Set(rows.map(r => r.room))].filter(room => {
+        const parts = room.split(':');
+        return parts.length === 3 && (parts[1] === userId || parts[2] === userId);
+    });
+
+    const threads = [];
+    for (const room of roomIds) {
+        const parts = room.split(':');
+        const otherId = parts[1] === userId ? parts[2] : parts[1];
+
+        const { data: otherUser } = await supabase
+            .from('users')
+            .select('id, username, avatar_url')
+            .eq('id', otherId)
+            .maybeSingle();
+
+        if (!otherUser) continue; // other account may have been deleted
+
+        const messages = await fetchHistory(room, DM_HISTORY_LIMIT);
+        threads.push({ room, with: otherUser, messages });
+    }
+
+    return threads;
 }
 
 async function fetchHistory(room, limit) {
