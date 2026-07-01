@@ -1,0 +1,1294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Loquor</title>
+    <link href="https://fonts.bunny.net/css?family=lexend:300,400,600,700" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Lexend', 'Segoe UI', Arial, sans-serif;
+            background: #0a0e1a;
+            color: #e8edf5;
+            height: 100vh;
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            padding: 0;
+            line-height: 1.5;
+        }
+
+        /* AUTH SCREEN */
+        #authScreen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            height: 100dvh;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        #authScreen h1 {
+            font-size: 2.5rem;
+            font-weight: 300;
+            letter-spacing: 4px;
+            color: #6b9fff;
+            margin-bottom: 8px;
+        }
+
+        #authScreen .subtitle {
+            font-size: 0.85rem;
+            color: #6a7a9a;
+            font-weight: 300;
+            margin-bottom: 20px;
+        }
+
+        .auth-box {
+            background: #131b2e;
+            border: 1px solid #1e2a44;
+            border-radius: 16px;
+            padding: 30px 28px;
+            width: 100%;
+            max-width: 380px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .auth-box input {
+            font-family: 'Lexend', sans-serif;
+            background: #0a0e1a;
+            border: 1px solid #1e2a44;
+            border-radius: 10px;
+            padding: 12px 16px;
+            color: #e8edf5;
+            font-size: 0.95rem;
+            outline: none;
+            transition: border 0.2s;
+            min-height: 44px;
+        }
+
+        .auth-box input:focus {
+            border-color: #6b9fff;
+        }
+
+        .auth-box input::placeholder {
+            color: #4a5a7a;
+        }
+
+        .auth-box .auth-error {
+            color: #ff6b6b;
+            font-size: 0.8rem;
+            min-height: 20px;
+        }
+
+        .auth-box button.primary {
+            font-family: 'Lexend', sans-serif;
+            background: #6b9fff;
+            color: #0a0e1a;
+            border: none;
+            border-radius: 10px;
+            padding: 12px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            touch-action: manipulation;
+            min-height: 44px;
+        }
+
+        .auth-box button.primary:hover {
+            background: #5a8aee;
+            transform: scale(0.97);
+        }
+
+        .auth-box button.primary:active {
+            transform: scale(0.94);
+        }
+
+        .auth-box button.primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .auth-switch {
+            text-align: center;
+            font-size: 0.8rem;
+            color: #6a7a9a;
+        }
+
+        .auth-switch a {
+            color: #6b9fff;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .auth-switch a:hover {
+            text-decoration: underline;
+        }
+
+        /* MAIN APP LAYOUT */
+        #chatApp {
+            display: none;
+            flex-direction: row;
+            height: 100vh;
+            height: 100dvh;
+        }
+
+        /* SIDEBAR */
+        .sidebar {
+            width: 240px;
+            flex-shrink: 0;
+            background: #0d1526;
+            border-right: 1px solid #1a2642;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 16px 16px 12px 16px;
+            border-bottom: 1px solid #1a2642;
+        }
+
+        .sidebar-header h1 {
+            font-weight: 300;
+            font-size: 1.1rem;
+            letter-spacing: 3px;
+            color: #6b9fff;
+        }
+
+        .sidebar-me {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            border-bottom: 1px solid #1a2642;
+        }
+
+        .avatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: #1a2a4a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #8ab4ff;
+            flex-shrink: 0;
+            object-fit: cover;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .avatar.small {
+            width: 26px;
+            height: 26px;
+            font-size: 0.65rem;
+        }
+
+        .sidebar-me .me-name {
+            font-size: 0.85rem;
+            font-weight: 400;
+            color: #e8edf5;
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .sidebar-me button {
+            background: none;
+            border: none;
+            color: #4a5a7a;
+            cursor: pointer;
+            font-size: 0.9rem;
+            padding: 4px;
+            touch-action: manipulation;
+        }
+
+        .sidebar-me button:hover {
+            color: #6b9fff;
+        }
+
+        .avatar-upload-input {
+            display: none;
+        }
+
+        .room-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .room-section-label {
+            font-size: 0.65rem;
+            color: #3a4a5a;
+            letter-spacing: 1px;
+            padding: 10px 8px 4px 8px;
+            font-weight: 600;
+        }
+
+        .room-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 8px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.15s;
+            touch-action: manipulation;
+            position: relative;
+        }
+
+        .room-item:hover {
+            background: rgba(107, 159, 255, 0.08);
+        }
+
+        .room-item.active {
+            background: rgba(107, 159, 255, 0.15);
+        }
+
+        .room-item .room-name {
+            font-size: 0.85rem;
+            color: #c8d3e5;
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .room-item.active .room-name {
+            color: #e8edf5;
+        }
+
+        .room-item .unread-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #6b9fff;
+            flex-shrink: 0;
+        }
+
+        .new-dm-btn {
+            margin: 8px;
+            background: rgba(107, 159, 255, 0.1);
+            border: 1px solid #1a2642;
+            color: #6a7a9a;
+            padding: 9px;
+            border-radius: 10px;
+            font-family: 'Lexend', sans-serif;
+            font-size: 0.78rem;
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+
+        .new-dm-btn:hover {
+            border-color: #6b9fff;
+            color: #6b9fff;
+        }
+
+        .online-count {
+            font-size: 0.7rem;
+            color: #4a7a5a;
+            font-weight: 300;
+            padding: 10px 16px;
+            border-top: 1px solid #1a2642;
+        }
+
+        .online-count .dot {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            background: #4ade80;
+            border-radius: 50%;
+            margin-right: 4px;
+        }
+
+        /* MAIN PANE */
+        .main-pane {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .header {
+            background: #0d1526;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+            border-bottom: 1px solid #1a2642;
+            user-select: none;
+        }
+
+        .header .room-title {
+            font-size: 0.95rem;
+            font-weight: 400;
+            color: #e8edf5;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sidebar-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: #6a7a9a;
+            font-size: 1.1rem;
+            cursor: pointer;
+            padding: 4px 8px;
+            touch-action: manipulation;
+        }
+
+        /* CHAT MESSAGES */
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 14px 10px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            background: #0a0e1a;
+        }
+
+        .message-row {
+            display: flex;
+            gap: 8px;
+            max-width: 88%;
+            align-items: flex-end;
+        }
+
+        .message-row.own {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+
+        .message-row.other {
+            align-self: flex-start;
+        }
+
+        .message {
+            padding: 8px 14px;
+            border-radius: 12px;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            min-width: 0;
+        }
+
+        .message .msg-user {
+            font-weight: 600;
+            font-size: 0.75rem;
+            color: #6b9fff;
+            margin-bottom: 2px;
+        }
+
+        .message .msg-text {
+            color: #e8edf5;
+            white-space: pre-wrap;
+        }
+
+        .message .msg-time {
+            font-size: 0.55rem;
+            color: #3a4a5a;
+            margin-top: 2px;
+            text-align: right;
+        }
+
+        .message-row.own .message {
+            background: #1a2a4a;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message-row.own .msg-user {
+            color: #8ab4ff;
+        }
+
+        .message-row.other .message {
+            background: #0d1526;
+            border: 1px solid #1a2642;
+            border-bottom-left-radius: 4px;
+        }
+
+        .message.system {
+            align-self: center;
+            background: transparent;
+            color: #4a5a7a;
+            font-size: 0.75rem;
+            font-style: italic;
+            max-width: 100%;
+            text-align: center;
+            padding: 4px 10px;
+            margin: 0 auto;
+        }
+
+        .typing-indicator {
+            font-size: 0.72rem;
+            color: #4a5a7a;
+            font-style: italic;
+            padding: 2px 14px;
+            min-height: 18px;
+        }
+
+        /* INPUT AREA */
+        .input-area {
+            flex-shrink: 0;
+            padding: 12px 14px 16px 14px;
+            background: #0d1526;
+            border-top: 1px solid #1a2642;
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+
+        .input-area input {
+            flex: 1;
+            font-family: 'Lexend', sans-serif;
+            font-size: 0.9rem;
+            padding: 10px 14px;
+            border: 1px solid #1a2642;
+            border-radius: 12px;
+            outline: none;
+            background: #0a0e1a;
+            color: #e8edf5;
+            min-height: 44px;
+            transition: border 0.2s;
+        }
+
+        .input-area input:focus {
+            border-color: #6b9fff;
+        }
+
+        .input-area input:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .input-area input::placeholder {
+            color: #3a4a5a;
+        }
+
+        .input-area button {
+            font-family: 'Lexend', sans-serif;
+            background: #6b9fff;
+            color: #0a0e1a;
+            border: none;
+            border-radius: 12px;
+            padding: 10px 18px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            min-height: 44px;
+            min-width: 70px;
+            touch-action: manipulation;
+            user-select: none;
+        }
+
+        .input-area button:hover:not(:disabled) {
+            background: #5a8aee;
+            transform: scale(0.97);
+        }
+
+        .input-area button:active:not(:disabled) {
+            transform: scale(0.94);
+        }
+
+        .input-area button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* SCROLLBARS - thin, no fancy fade */
+        .chat-container::-webkit-scrollbar,
+        .room-list::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .chat-container::-webkit-scrollbar-track,
+        .room-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .chat-container::-webkit-scrollbar-thumb,
+        .room-list::-webkit-scrollbar-thumb {
+            background: #1a2642;
+            border-radius: 4px;
+        }
+
+        /* MODAL (new DM) */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            padding: 20px;
+        }
+
+        .modal-overlay.open {
+            display: flex;
+        }
+
+        .modal-box {
+            background: #131b2e;
+            border: 1px solid #1e2a44;
+            border-radius: 16px;
+            padding: 24px;
+            width: 100%;
+            max-width: 340px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .modal-box h2 {
+            font-size: 1rem;
+            font-weight: 400;
+            color: #e8edf5;
+        }
+
+        .modal-box input {
+            font-family: 'Lexend', sans-serif;
+            background: #0a0e1a;
+            border: 1px solid #1e2a44;
+            border-radius: 10px;
+            padding: 10px 14px;
+            color: #e8edf5;
+            font-size: 0.9rem;
+            outline: none;
+            min-height: 42px;
+        }
+
+        .modal-box input:focus {
+            border-color: #6b9fff;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+
+        .modal-actions button {
+            font-family: 'Lexend', sans-serif;
+            border-radius: 10px;
+            padding: 9px 16px;
+            font-size: 0.82rem;
+            cursor: pointer;
+            border: none;
+            touch-action: manipulation;
+        }
+
+        .modal-actions .btn-cancel {
+            background: transparent;
+            color: #6a7a9a;
+        }
+
+        .modal-actions .btn-confirm {
+            background: #6b9fff;
+            color: #0a0e1a;
+            font-weight: 600;
+        }
+
+        .modal-error {
+            color: #ff6b6b;
+            font-size: 0.78rem;
+            min-height: 16px;
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 720px) {
+            .sidebar {
+                position: fixed;
+                left: 0;
+                top: 0;
+                bottom: 0;
+                z-index: 40;
+                transform: translateX(-100%);
+                transition: transform 0.2s ease;
+                box-shadow: 4px 0 20px rgba(0,0,0,0.4);
+            }
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            .sidebar-toggle {
+                display: inline-flex;
+            }
+        }
+
+        @media (max-width: 480px) {
+            #authScreen h1 {
+                font-size: 2rem;
+            }
+            .auth-box {
+                padding: 20px 18px;
+            }
+            .header .room-title {
+                font-size: 0.85rem;
+            }
+            .message {
+                font-size: 0.85rem;
+            }
+            .message-row {
+                max-width: 92%;
+            }
+            .input-area {
+                padding: 10px 10px 14px 10px;
+                gap: 8px;
+            }
+            .input-area input {
+                font-size: 0.85rem;
+                min-height: 38px;
+                padding: 8px 12px;
+            }
+            .input-area button {
+                font-size: 0.8rem;
+                padding: 8px 14px;
+                min-height: 38px;
+                min-width: 60px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- AUTH SCREEN -->
+    <div id="authScreen">
+        <h1>LOQUOR</h1>
+        <div class="subtitle">speak · listen · connect</div>
+        <div class="auth-box">
+            <input type="text" id="authUsername" placeholder="Username" maxlength="30" autocomplete="username">
+            <input type="password" id="authPassword" placeholder="Password" autocomplete="current-password">
+            <div class="auth-error" id="authError"></div>
+            <button class="primary" id="authSubmitBtn">Log In</button>
+            <div class="auth-switch">
+                <span id="authSwitchText">No account?</span> <a id="authSwitchLink">Sign up</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- CHAT APP -->
+    <div id="chatApp">
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h1>LOQUOR</h1>
+            </div>
+            <div class="sidebar-me">
+                <img class="avatar" id="myAvatar" alt="">
+                <div class="me-name" id="myName"></div>
+                <input type="file" id="avatarInput" class="avatar-upload-input" accept="image/png,image/jpeg,image/webp,image/gif">
+                <button id="avatarBtn" title="Change avatar">Avatar</button>
+                <button id="logoutBtn" title="Log out">Exit</button>
+            </div>
+            <button class="new-dm-btn" id="newDmBtn">+ New Direct Message</button>
+            <div class="room-list" id="roomList">
+                <!-- room items rendered here -->
+            </div>
+            <div class="online-count"><span class="dot"></span><span id="onlineCount">0</span> online</div>
+        </div>
+
+        <div class="main-pane">
+            <header class="header">
+                <div class="room-title">
+                    <button class="sidebar-toggle" id="sidebarToggle">=</button>
+                    <span id="roomTitleText"># public</span>
+                </div>
+            </header>
+
+            <div class="chat-container" id="chatContainer">
+                <!-- Messages rendered here -->
+            </div>
+            <div class="typing-indicator" id="typingIndicator"></div>
+
+            <div class="input-area">
+                <input type="text" id="messageInput" placeholder="Type a message..." maxlength="500" autocomplete="off">
+                <button id="sendBtn">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- NEW DM MODAL -->
+    <div class="modal-overlay" id="dmModal">
+        <div class="modal-box">
+            <h2>Message someone</h2>
+            <input type="text" id="dmUsernameInput" placeholder="Enter their username" maxlength="30" autocomplete="off">
+            <div class="modal-error" id="dmModalError"></div>
+            <div class="modal-actions">
+                <button class="btn-cancel" id="dmCancelBtn">Cancel</button>
+                <button class="btn-confirm" id="dmConfirmBtn">Open chat</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            'use strict';
+
+            // ---------- DOM refs ----------
+            var authScreen = document.getElementById('authScreen');
+            var chatApp = document.getElementById('chatApp');
+            var authUsername = document.getElementById('authUsername');
+            var authPassword = document.getElementById('authPassword');
+            var authError = document.getElementById('authError');
+            var authSubmitBtn = document.getElementById('authSubmitBtn');
+            var authSwitchText = document.getElementById('authSwitchText');
+            var authSwitchLink = document.getElementById('authSwitchLink');
+
+            var sidebar = document.getElementById('sidebar');
+            var sidebarToggle = document.getElementById('sidebarToggle');
+            var myAvatarImg = document.getElementById('myAvatar');
+            var myName = document.getElementById('myName');
+            var avatarBtn = document.getElementById('avatarBtn');
+            var avatarInput = document.getElementById('avatarInput');
+            var logoutBtn = document.getElementById('logoutBtn');
+            var newDmBtn = document.getElementById('newDmBtn');
+            var roomList = document.getElementById('roomList');
+            var onlineCount = document.getElementById('onlineCount');
+
+            var roomTitleText = document.getElementById('roomTitleText');
+            var chatContainer = document.getElementById('chatContainer');
+            var typingIndicator = document.getElementById('typingIndicator');
+            var messageInput = document.getElementById('messageInput');
+            var sendBtn = document.getElementById('sendBtn');
+
+            var dmModal = document.getElementById('dmModal');
+            var dmUsernameInput = document.getElementById('dmUsernameInput');
+            var dmModalError = document.getElementById('dmModalError');
+            var dmCancelBtn = document.getElementById('dmCancelBtn');
+            var dmConfirmBtn = document.getElementById('dmConfirmBtn');
+
+            // ---------- State ----------
+            var PUBLIC_ROOM = 'public';
+            var authMode = 'login'; // or 'signup'
+            var me = null; // { id, username, avatar_url }
+            var token = null;
+            var ws = null;
+            var reconnectAttempts = 0;
+            var maxReconnectAttempts = 6;
+            var reconnectTimer = null;
+
+            var activeRoom = PUBLIC_ROOM;
+            // roomsData: roomId -> { title, messages: [], unread: bool, otherUser: {} | null }
+            var roomsData = {};
+            roomsData[PUBLIC_ROOM] = { title: '# public', messages: [], unread: false, otherUser: null };
+
+            var typingTimeout = null;
+            var lastTypingSent = 0;
+
+            // ---------- localStorage (token only, never password) ----------
+            function getStoredToken() {
+                try { return localStorage.getItem('loquor_token'); } catch (e) { return null; }
+            }
+            function storeToken(t) {
+                try { localStorage.setItem('loquor_token', t); } catch (e) {}
+            }
+            function clearStoredToken() {
+                try { localStorage.removeItem('loquor_token'); } catch (e) {}
+            }
+
+            // ---------- Helpers ----------
+            function escapeHtml(text) {
+                var div = document.createElement('div');
+                div.textContent = text == null ? '' : text;
+                return div.innerHTML;
+            }
+
+            function initials(name) {
+                if (!name) return '?';
+                return name.trim().charAt(0).toUpperCase();
+            }
+
+            function avatarHtml(avatarUrl, username, sizeClass) {
+                var cls = 'avatar' + (sizeClass ? ' ' + sizeClass : '');
+                if (avatarUrl) {
+                    return '<img class="' + cls + '" src="' + escapeHtml(avatarUrl) + '" alt="">';
+                }
+                return '<div class="' + cls + '">' + escapeHtml(initials(username)) + '</div>';
+            }
+
+            function setAuthError(msg) {
+                authError.textContent = msg || '';
+            }
+
+            async function apiRequest(pathName, payload) {
+                var resp = await fetch(pathName, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload || {})
+                });
+                var data = null;
+                try { data = await resp.json(); } catch (e) {}
+                if (!resp.ok) {
+                    throw new Error((data && data.error) || 'Request failed.');
+                }
+                return data;
+            }
+
+            // ---------- Auth screen ----------
+            function setAuthMode(mode) {
+                authMode = mode;
+                setAuthError('');
+                if (mode === 'login') {
+                    authSubmitBtn.textContent = 'Log In';
+                    authSwitchText.textContent = 'No account?';
+                    authSwitchLink.textContent = 'Sign up';
+                } else {
+                    authSubmitBtn.textContent = 'Sign Up';
+                    authSwitchText.textContent = 'Already have an account?';
+                    authSwitchLink.textContent = 'Log in';
+                }
+            }
+
+            authSwitchLink.addEventListener('click', function() {
+                setAuthMode(authMode === 'login' ? 'signup' : 'login');
+            });
+
+            async function submitAuth() {
+                var username = authUsername.value.trim();
+                var password = authPassword.value;
+
+                if (!username || !password) {
+                    setAuthError('Please enter a username and password.');
+                    return;
+                }
+
+                authSubmitBtn.disabled = true;
+                setAuthError('');
+                try {
+                    var endpoint = authMode === 'login' ? '/api/login' : '/api/signup';
+                    var result = await apiRequest(endpoint, { username: username, password: password });
+                    onAuthSuccess(result.user, result.token);
+                } catch (e) {
+                    setAuthError(e.message || 'Something went wrong.');
+                } finally {
+                    authSubmitBtn.disabled = false;
+                }
+            }
+
+            authSubmitBtn.addEventListener('click', submitAuth);
+            authPassword.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') { e.preventDefault(); submitAuth(); }
+            });
+            authUsername.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') { e.preventDefault(); authPassword.focus(); }
+            });
+
+            function onAuthSuccess(user, tok) {
+                me = user;
+                token = tok;
+                storeToken(tok);
+                enterApp();
+            }
+
+            // ---------- Enter / leave app ----------
+            function enterApp() {
+                authScreen.style.display = 'none';
+                chatApp.style.display = 'flex';
+                renderMe();
+                renderRoomList();
+                connectWebSocket();
+                messageInput.focus();
+            }
+
+            function renderMe() {
+                myName.textContent = me.username;
+                if (me.avatar_url) {
+                    myAvatarImg.src = me.avatar_url;
+                    myAvatarImg.style.display = '';
+                } else {
+                    myAvatarImg.removeAttribute('src');
+                    myAvatarImg.style.display = 'none';
+                    var existingFallback = document.getElementById('myAvatarFallback');
+                    if (existingFallback) existingFallback.remove();
+                    var fallback = document.createElement('div');
+                    fallback.className = 'avatar';
+                    fallback.id = 'myAvatarFallback';
+                    fallback.textContent = initials(me.username);
+                    myAvatarImg.insertAdjacentElement('afterend', fallback);
+                }
+            }
+
+            function logout() {
+                if (ws) { try { ws.close(); } catch (e) {} ws = null; }
+                if (token) { apiRequest('/api/logout', { token: token }).catch(function() {}); }
+                clearStoredToken();
+                me = null;
+                token = null;
+                activeRoom = PUBLIC_ROOM;
+                roomsData = {};
+                roomsData[PUBLIC_ROOM] = { title: '# public', messages: [], unread: false, otherUser: null };
+                chatApp.style.display = 'none';
+                authScreen.style.display = 'flex';
+                authUsername.value = '';
+                authPassword.value = '';
+                setAuthMode('login');
+                authUsername.focus();
+            }
+
+            logoutBtn.addEventListener('click', logout);
+
+            // ---------- WebSocket ----------
+            function connectWebSocket() {
+                var protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                var wsUrl = protocol + '//' + window.location.host + '/ws?token=' + encodeURIComponent(token);
+
+                ws = new WebSocket(wsUrl);
+
+                ws.onopen = function() {
+                    reconnectAttempts = 0;
+                    messageInput.disabled = false;
+                    sendBtn.disabled = false;
+                };
+
+                ws.onmessage = function(event) {
+                    var data;
+                    try { data = JSON.parse(event.data); } catch (e) { return; }
+                    handleWsMessage(data);
+                };
+
+                ws.onclose = function(evt) {
+                    messageInput.disabled = true;
+                    sendBtn.disabled = true;
+                    if (evt.code === 4001) return; // unauthorized, don't retry
+                    if (me && reconnectAttempts < maxReconnectAttempts) {
+                        reconnectAttempts++;
+                        var delay = Math.min(1000 * Math.pow(2, reconnectAttempts - 1), 15000);
+                        reconnectTimer = setTimeout(function() {
+                            if (me) connectWebSocket();
+                        }, delay);
+                    }
+                };
+
+                ws.onerror = function() {};
+            }
+
+            function handleWsMessage(data) {
+                switch (data.type) {
+                    case 'history':
+                        if (roomsData[data.room]) {
+                            roomsData[data.room].messages = data.messages;
+                            if (data.room === activeRoom) renderMessages(data.room);
+                        }
+                        break;
+
+                    case 'message':
+                        onIncomingMessage(data);
+                        break;
+
+                    case 'dm_opened':
+                        onDmOpened(data);
+                        break;
+
+                    case 'online_count':
+                        onlineCount.textContent = data.count;
+                        break;
+
+                    case 'system':
+                        if (roomsData[data.room]) {
+                            roomsData[data.room].messages.push({ system: true, text: data.text });
+                            if (data.room === activeRoom) appendSystemMessage(data.text);
+                        }
+                        break;
+
+                    case 'typing':
+                        showTyping(data.room, data.username);
+                        break;
+
+                    case 'avatar_update':
+                        if (me && data.userId === me.id) {
+                            me.avatar_url = data.avatarUrl;
+                            renderMe();
+                        }
+                        Object.keys(roomsData).forEach(function(rid) {
+                            var room = roomsData[rid];
+                            if (room.otherUser && room.otherUser.id === data.userId) {
+                                room.otherUser.avatar_url = data.avatarUrl;
+                            }
+                            room.messages.forEach(function(m) {
+                                if (m.userId === data.userId) m.avatarUrl = data.avatarUrl;
+                            });
+                        });
+                        renderRoomList();
+                        if (roomsData[activeRoom]) renderMessages(activeRoom);
+                        break;
+
+                    case 'error':
+                        dmModalError.textContent = data.message || 'Error';
+                        break;
+                }
+            }
+
+            function onIncomingMessage(data) {
+                if (!roomsData[data.room]) {
+                    roomsData[data.room] = { title: data.username, messages: [], unread: false, otherUser: null };
+                }
+                roomsData[data.room].messages.push(data);
+
+                if (data.room === activeRoom) {
+                    appendMessage(data);
+                } else {
+                    roomsData[data.room].unread = true;
+                    renderRoomList();
+                }
+            }
+
+            function onDmOpened(data) {
+                roomsData[data.room] = {
+                    title: data.with.username,
+                    messages: data.messages,
+                    unread: false,
+                    otherUser: data.with
+                };
+                renderRoomList();
+                switchRoom(data.room);
+            }
+
+            // ---------- Room switching / list ----------
+            function renderRoomList() {
+                var html = '<div class="room-section-label">ROOMS</div>';
+                html += roomItemHtml(PUBLIC_ROOM, '# public', null, roomsData[PUBLIC_ROOM] && roomsData[PUBLIC_ROOM].unread);
+
+                var dmRooms = Object.keys(roomsData).filter(function(r) { return r.indexOf('dm:') === 0; });
+                if (dmRooms.length > 0) {
+                    html += '<div class="room-section-label">DIRECT MESSAGES</div>';
+                    dmRooms.forEach(function(r) {
+                        var room = roomsData[r];
+                        html += roomItemHtml(r, room.title, room.otherUser, room.unread);
+                    });
+                }
+
+                roomList.innerHTML = html;
+
+                roomList.querySelectorAll('.room-item').forEach(function(el) {
+                    el.addEventListener('click', function() {
+                        switchRoom(el.getAttribute('data-room'));
+                    });
+                });
+            }
+
+            function roomItemHtml(roomId, title, otherUser, unread) {
+                var active = roomId === activeRoom ? ' active' : '';
+                var avatar = otherUser ? avatarHtml(otherUser.avatar_url, otherUser.username, 'small') : '';
+                var dot = unread ? '<span class="unread-dot"></span>' : '';
+                return '<div class="room-item' + active + '" data-room="' + escapeHtml(roomId) + '">' +
+                    avatar +
+                    '<span class="room-name">' + escapeHtml(title) + '</span>' +
+                    dot +
+                    '</div>';
+            }
+
+            function switchRoom(roomId) {
+                activeRoom = roomId;
+                if (roomsData[roomId]) roomsData[roomId].unread = false;
+                roomTitleText.textContent = roomsData[roomId] ? roomsData[roomId].title : roomId;
+                renderMessages(roomId);
+                renderRoomList();
+                typingIndicator.textContent = '';
+                closeSidebarOnMobile();
+                messageInput.focus();
+            }
+
+            // ---------- Rendering messages ----------
+            function renderMessages(roomId) {
+                chatContainer.innerHTML = '';
+                var room = roomsData[roomId];
+                if (!room) return;
+                var frag = document.createDocumentFragment();
+                room.messages.forEach(function(m) {
+                    frag.appendChild(m.system ? buildSystemEl(m.text) : buildMessageEl(m));
+                });
+                chatContainer.appendChild(frag);
+                scrollToBottom();
+            }
+
+            function appendMessage(m) {
+                chatContainer.appendChild(buildMessageEl(m));
+                scrollToBottom();
+            }
+
+            function appendSystemMessage(text) {
+                chatContainer.appendChild(buildSystemEl(text));
+                scrollToBottom();
+            }
+
+            function buildMessageEl(msg) {
+                var row = document.createElement('div');
+                var isOwn = me && msg.userId === me.id;
+                row.className = 'message-row ' + (isOwn ? 'own' : 'other');
+
+                var time = new Date(msg.timestamp);
+                var timeStr = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                row.innerHTML =
+                    avatarHtml(msg.avatarUrl, msg.username, 'small') +
+                    '<div class="message">' +
+                        '<div class="msg-user">' + escapeHtml(msg.username) + '</div>' +
+                        '<div class="msg-text">' + escapeHtml(msg.text) + '</div>' +
+                        '<div class="msg-time">' + timeStr + '</div>' +
+                    '</div>';
+                return row;
+            }
+
+            function buildSystemEl(text) {
+                var div = document.createElement('div');
+                div.className = 'message system';
+                div.textContent = text;
+                return div;
+            }
+
+            function scrollToBottom() {
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
+
+            // ---------- Sending ----------
+            function sendMessage() {
+                var text = messageInput.value.trim();
+                if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
+
+                ws.send(JSON.stringify({ type: 'message', room: activeRoom, text: text }));
+                messageInput.value = '';
+                messageInput.focus();
+            }
+
+            sendBtn.addEventListener('click', sendMessage);
+            messageInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+
+            messageInput.addEventListener('input', function() {
+                var now = Date.now();
+                if (now - lastTypingSent > 2000 && ws && ws.readyState === WebSocket.OPEN) {
+                    lastTypingSent = now;
+                    ws.send(JSON.stringify({ type: 'typing', room: activeRoom }));
+                }
+            });
+
+            function showTyping(room, username) {
+                if (room !== activeRoom) return;
+                typingIndicator.textContent = username + ' is typing…';
+                clearTimeout(typingTimeout);
+                typingTimeout = setTimeout(function() {
+                    typingIndicator.textContent = '';
+                }, 3000);
+            }
+
+            // ---------- New DM modal ----------
+            function openDmModal() {
+                dmUsernameInput.value = '';
+                dmModalError.textContent = '';
+                dmModal.classList.add('open');
+                setTimeout(function() { dmUsernameInput.focus(); }, 50);
+            }
+
+            function closeDmModal() {
+                dmModal.classList.remove('open');
+            }
+
+            newDmBtn.addEventListener('click', openDmModal);
+            dmCancelBtn.addEventListener('click', closeDmModal);
+            dmModal.addEventListener('click', function(e) {
+                if (e.target === dmModal) closeDmModal();
+            });
+
+            function submitDmRequest() {
+                var uname = dmUsernameInput.value.trim();
+                if (!uname) {
+                    dmModalError.textContent = 'Enter a username.';
+                    return;
+                }
+                if (!ws || ws.readyState !== WebSocket.OPEN) {
+                    dmModalError.textContent = 'Not connected. Try again in a moment.';
+                    return;
+                }
+                ws.send(JSON.stringify({ type: 'open_dm', username: uname }));
+                closeDmModal();
+            }
+
+            dmConfirmBtn.addEventListener('click', submitDmRequest);
+            dmUsernameInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') { e.preventDefault(); submitDmRequest(); }
+            });
+
+            // ---------- Avatar upload ----------
+            avatarBtn.addEventListener('click', function() { avatarInput.click(); });
+
+            avatarInput.addEventListener('change', function() {
+                var file = avatarInput.files && avatarInput.files[0];
+                avatarInput.value = '';
+                if (!file) return;
+
+                if (file.size > 500 * 1024) {
+                    alert('Avatar must be under 500KB.');
+                    return;
+                }
+
+                var reader = new FileReader();
+                reader.onload = async function() {
+                    try {
+                        var result = await apiRequest('/api/avatar', { token: token, image: reader.result });
+                        me.avatar_url = result.avatar_url;
+                        renderMe();
+                    } catch (e) {
+                        alert(e.message || 'Avatar upload failed.');
+                    }
+                };
+                reader.readAsDataURL(file);
+            });
+
+            // ---------- Mobile sidebar ----------
+            sidebarToggle.addEventListener('click', function() {
+                sidebar.classList.toggle('open');
+            });
+
+            function closeSidebarOnMobile() {
+                if (window.innerWidth <= 720) sidebar.classList.remove('open');
+            }
+
+            // ---------- Init: try auto-login via stored token ----------
+            (async function init() {
+                var stored = getStoredToken();
+                if (!stored) {
+                    authUsername.focus();
+                    return;
+                }
+                try {
+                    var result = await apiRequest('/api/session', { token: stored });
+                    me = result.user;
+                    token = stored;
+                    enterApp();
+                } catch (e) {
+                    clearStoredToken();
+                    authUsername.focus();
+                }
+            })();
+
+        })();
+    </script>
+</body>
+</html>
