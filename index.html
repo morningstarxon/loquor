@@ -158,6 +158,10 @@
         .sidebar-header {
             padding: 16px 16px 12px 16px;
             border-bottom: 1px solid #1a2642;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
         }
 
         .sidebar-header h1 {
@@ -165,6 +169,45 @@
             font-size: 1.1rem;
             letter-spacing: 3px;
             color: #6b9fff;
+        }
+
+        /* Close button: hidden on desktop (sidebar is always visible there),
+           shown only on mobile where the sidebar becomes an overlay. */
+        .sidebar-close-btn {
+            display: none;
+            background: rgba(107, 159, 255, 0.12);
+            border: 1px solid #1a2642;
+            color: #c8d3e5;
+            font-family: 'Lexend', sans-serif;
+            font-size: 0.78rem;
+            font-weight: 600;
+            padding: 8px 14px;
+            border-radius: 10px;
+            cursor: pointer;
+            touch-action: manipulation;
+            flex-shrink: 0;
+        }
+
+        .sidebar-close-btn:hover {
+            border-color: #6b9fff;
+            color: #6b9fff;
+        }
+
+        .sidebar-close-btn:active {
+            transform: scale(0.96);
+        }
+
+        /* Tap-to-close backdrop behind the mobile sidebar */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 39;
+        }
+
+        .sidebar-overlay.open {
+            display: block;
         }
 
         .sidebar-me {
@@ -637,6 +680,9 @@
             .sidebar-toggle {
                 display: inline-flex;
             }
+            .sidebar-close-btn {
+                display: inline-block;
+            }
         }
 
         @media (max-width: 480px) {
@@ -692,9 +738,11 @@
 
     <!-- CHAT APP -->
     <div id="chatApp">
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
         <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <h1>LOQUOR</h1>
+                <button class="sidebar-close-btn" id="sidebarCloseBtn" title="Close menu">Close ✕</button>
             </div>
             <div class="sidebar-me">
                 <img class="avatar" id="myAvatar" alt="">
@@ -759,6 +807,8 @@
 
             var sidebar = document.getElementById('sidebar');
             var sidebarToggle = document.getElementById('sidebarToggle');
+            var sidebarCloseBtn = document.getElementById('sidebarCloseBtn');
+            var sidebarOverlay = document.getElementById('sidebarOverlay');
             var myAvatarImg = document.getElementById('myAvatar');
             var myName = document.getElementById('myName');
             var avatarBtn = document.getElementById('avatarBtn');
@@ -797,6 +847,7 @@
 
             var typingTimeout = null;
             var lastTypingSent = 0;
+            var pendingDmRequest = false; // true right after user submits "New DM" until server responds
 
             // ---------- localStorage (token only, never password) ----------
             function getStoredToken() {
@@ -1063,7 +1114,18 @@
                     otherUser: data.with
                 };
                 renderRoomList();
-                switchRoom(data.room);
+
+                // Only jump into the thread if the user just asked to open
+                // one (tracked via pendingDmRequest). Threads restored on
+                // page load/reconnect should just populate the sidebar,
+                // not steal focus from whatever room the user is viewing.
+                if (pendingDmRequest) {
+                    pendingDmRequest = false;
+                    switchRoom(data.room);
+                } else if (data.room === activeRoom) {
+                    // Room already open (e.g. reconnect refresh) - re-render it
+                    renderMessages(data.room);
+                }
             }
 
             // ---------- Room switching / list ----------
@@ -1226,6 +1288,7 @@
                     dmModalError.textContent = 'Not connected. Try again in a moment.';
                     return;
                 }
+                pendingDmRequest = true;
                 ws.send(JSON.stringify({ type: 'open_dm', username: uname }));
                 closeDmModal();
             }
@@ -1262,15 +1325,32 @@
             });
 
             // ---------- Mobile sidebar ----------
-            sidebarToggle.addEventListener('click', function() {
-                sidebar.classList.toggle('open');
-            });
-
-            function closeSidebarOnMobile() {
-                if (window.innerWidth <= 720) sidebar.classList.remove('open');
+            function openSidebar() {
+                sidebar.classList.add('open');
+                sidebarOverlay.classList.add('open');
             }
 
-            // ---------- Init: try auto-login via stored token ----------
+            function closeSidebar() {
+                sidebar.classList.remove('open');
+                sidebarOverlay.classList.remove('open');
+            }
+
+            sidebarToggle.addEventListener('click', function() {
+                if (sidebar.classList.contains('open')) {
+                    closeSidebar();
+                } else {
+                    openSidebar();
+                }
+            });
+
+            sidebarCloseBtn.addEventListener('click', closeSidebar);
+            sidebarOverlay.addEventListener('click', closeSidebar);
+
+            function closeSidebarOnMobile() {
+                if (window.innerWidth <= 720) closeSidebar();
+            }
+
+            
             (async function init() {
                 var stored = getStoredToken();
                 if (!stored) {
