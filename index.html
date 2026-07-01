@@ -492,6 +492,120 @@
             min-height: 18px;
         }
 
+        /* REPLY BAR (above input, shown when replying to a message) */
+        .reply-bar {
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            background: #101a30;
+            border-top: 1px solid #1a2642;
+            border-left: 3px solid #6b9fff;
+            padding: 8px 14px;
+        }
+
+        .reply-bar.open {
+            display: flex;
+        }
+
+        .reply-bar-content {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        .reply-bar-label {
+            font-size: 0.72rem;
+            color: #6b9fff;
+            font-weight: 600;
+        }
+
+        .reply-bar-text {
+            font-size: 0.78rem;
+            color: #8a99b8;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .reply-bar button {
+            background: none;
+            border: none;
+            color: #4a5a7a;
+            cursor: pointer;
+            font-size: 0.95rem;
+            padding: 4px 8px;
+            flex-shrink: 0;
+            touch-action: manipulation;
+        }
+
+        .reply-bar button:hover {
+            color: #ff6b6b;
+        }
+
+        /* Reply preview shown inside a message bubble that is itself a reply */
+        .msg-reply-preview {
+            border-left: 2px solid rgba(107, 159, 255, 0.5);
+            padding: 3px 8px;
+            margin-bottom: 5px;
+            border-radius: 4px;
+            background: rgba(0, 0, 0, 0.15);
+            font-size: 0.75rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0px;
+            max-width: 100%;
+        }
+
+        .msg-reply-user {
+            color: #8ab4ff;
+            font-weight: 600;
+        }
+
+        .msg-reply-text {
+            color: #7a8aa8;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: block;
+        }
+
+        /* Online/offline status dot, used in sidebar DM entries and header */
+        .avatar-wrap {
+            position: relative;
+            flex-shrink: 0;
+            display: inline-flex;
+        }
+
+        .status-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            display: inline-block;
+            position: absolute;
+            right: -1px;
+            bottom: -1px;
+            border: 2px solid #0d1526;
+            box-sizing: content-box;
+        }
+
+        .status-dot.small {
+            width: 7px;
+            height: 7px;
+            border-width: 1.5px;
+        }
+
+        .status-dot.online {
+            background: #4ade80;
+        }
+
+        .status-dot.offline {
+            background: #4a5a7a;
+        }
+
         /* INPUT AREA */
         .input-area {
             flex-shrink: 0;
@@ -771,6 +885,14 @@
             </div>
             <div class="typing-indicator" id="typingIndicator"></div>
 
+            <div class="reply-bar" id="replyBar">
+                <div class="reply-bar-content">
+                    <span class="reply-bar-label">Replying to <span id="replyBarUser"></span></span>
+                    <span class="reply-bar-text" id="replyBarText"></span>
+                </div>
+                <button id="replyBarCancel" title="Cancel reply">✕</button>
+            </div>
+
             <div class="input-area">
                 <input type="text" id="messageInput" placeholder="Type a message..." maxlength="500" autocomplete="off">
                 <button id="sendBtn">Send</button>
@@ -821,6 +943,10 @@
             var roomTitleText = document.getElementById('roomTitleText');
             var chatContainer = document.getElementById('chatContainer');
             var typingIndicator = document.getElementById('typingIndicator');
+            var replyBar = document.getElementById('replyBar');
+            var replyBarUser = document.getElementById('replyBarUser');
+            var replyBarText = document.getElementById('replyBarText');
+            var replyBarCancel = document.getElementById('replyBarCancel');
             var messageInput = document.getElementById('messageInput');
             var sendBtn = document.getElementById('sendBtn');
 
@@ -848,6 +974,56 @@
             var typingTimeout = null;
             var lastTypingSent = 0;
             var pendingDmRequest = false; // true right after user submits "New DM" until server responds
+            var replyTarget = null; // { id, username, text } of message currently being replied to
+            var notificationsEnabled = false;
+
+            // ---------- Push-style notifications (Notification API, foreground only) ----------
+            function setupNotifications() {
+                if (!('Notification' in window)) return; // browser doesn't support it, quietly skip
+
+                if (Notification.permission === 'granted') {
+                    notificationsEnabled = true;
+                } else if (Notification.permission === 'default') {
+                    // Ask once, right after login - a natural moment, not a
+                    // random interruption mid-conversation.
+                    Notification.requestPermission().then(function(perm) {
+                        notificationsEnabled = (perm === 'granted');
+                    });
+                }
+                // If permission is 'denied', leave notificationsEnabled false;
+                // browsers block re-prompting, nothing to do here.
+            }
+
+            function notifyIncomingMessage(msg, roomTitle) {
+                if (!notificationsEnabled || !('Notification' in window)) return;
+                if (Notification.permission !== 'granted') return;
+                // Only notify for messages the user isn't already looking at:
+                // either a different room is active, or the tab isn't focused.
+                var tabHidden = document.hidden || !document.hasFocus();
+                if (msg.room === activeRoom && !tabHidden) return;
+                if (me && msg.userId === me.id) return; // never notify on your own messages
+
+                var title = msg.room === PUBLIC_ROOM
+                    ? msg.username + ' in # public'
+                    : msg.username;
+
+                try {
+                    var notif = new Notification(title, {
+                        body: msg.text,
+                        tag: msg.room, // collapse multiple notifications per room instead of stacking
+                        icon: msg.avatarUrl || undefined
+                    });
+                    notif.onclick = function() {
+                        window.focus();
+                        switchRoom(msg.room);
+                        notif.close();
+                    };
+                } catch (e) {
+                    // Some browsers (notably iOS Safari in certain contexts)
+                    // throw on `new Notification()` even when permission is
+                    // granted; fail silently rather than break the chat.
+                }
+            }
 
             // ---------- localStorage (token only, never password) ----------
             function getStoredToken() {
@@ -961,6 +1137,7 @@
                 renderMe();
                 renderRoomList();
                 connectWebSocket();
+                setupNotifications();
                 messageInput.focus();
             }
 
@@ -1089,6 +1266,16 @@
                     case 'error':
                         dmModalError.textContent = data.message || 'Error';
                         break;
+
+                    case 'presence':
+                        Object.keys(roomsData).forEach(function(rid) {
+                            var room = roomsData[rid];
+                            if (room.otherUser && room.otherUser.id === data.userId) {
+                                room.otherUser.online = data.online;
+                            }
+                        });
+                        renderRoomList();
+                        break;
                 }
             }
 
@@ -1097,6 +1284,8 @@
                     roomsData[data.room] = { title: data.username, messages: [], unread: false, otherUser: null };
                 }
                 roomsData[data.room].messages.push(data);
+
+                notifyIncomingMessage(data, roomsData[data.room].title);
 
                 if (data.room === activeRoom) {
                     appendMessage(data);
@@ -1107,11 +1296,13 @@
             }
 
             function onDmOpened(data) {
+                var otherUser = data.with;
+                otherUser.online = !!data.online;
                 roomsData[data.room] = {
-                    title: data.with.username,
+                    title: otherUser.username,
                     messages: data.messages,
                     unread: false,
-                    otherUser: data.with
+                    otherUser: otherUser
                 };
                 renderRoomList();
 
@@ -1131,14 +1322,15 @@
             // ---------- Room switching / list ----------
             function renderRoomList() {
                 var html = '<div class="room-section-label">ROOMS</div>';
-                html += roomItemHtml(PUBLIC_ROOM, '# public', null, roomsData[PUBLIC_ROOM] && roomsData[PUBLIC_ROOM].unread);
+                html += roomItemHtml(PUBLIC_ROOM, '# public', null, roomsData[PUBLIC_ROOM] && roomsData[PUBLIC_ROOM].unread, null);
 
                 var dmRooms = Object.keys(roomsData).filter(function(r) { return r.indexOf('dm:') === 0; });
                 if (dmRooms.length > 0) {
                     html += '<div class="room-section-label">DIRECT MESSAGES</div>';
                     dmRooms.forEach(function(r) {
                         var room = roomsData[r];
-                        html += roomItemHtml(r, room.title, room.otherUser, room.unread);
+                        var online = room.otherUser ? !!room.otherUser.online : null;
+                        html += roomItemHtml(r, room.title, room.otherUser, room.unread, online);
                     });
                 }
 
@@ -1151,9 +1343,16 @@
                 });
             }
 
-            function roomItemHtml(roomId, title, otherUser, unread) {
+            function roomItemHtml(roomId, title, otherUser, unread, online) {
                 var active = roomId === activeRoom ? ' active' : '';
-                var avatar = otherUser ? avatarHtml(otherUser.avatar_url, otherUser.username, 'small') : '';
+                var avatar = '';
+                if (otherUser) {
+                    var dotCls = online ? 'status-dot online' : 'status-dot offline';
+                    avatar = '<span class="avatar-wrap">' +
+                        avatarHtml(otherUser.avatar_url, otherUser.username, 'small') +
+                        '<span class="' + dotCls + '"></span>' +
+                        '</span>';
+                }
                 var dot = unread ? '<span class="unread-dot"></span>' : '';
                 return '<div class="room-item' + active + '" data-room="' + escapeHtml(roomId) + '">' +
                     avatar +
@@ -1204,13 +1403,33 @@
                 var time = new Date(msg.timestamp);
                 var timeStr = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+                var replyHtml = '';
+                if (msg.replyTo) {
+                    replyHtml = '<div class="msg-reply-preview">' +
+                        '<span class="msg-reply-user">' + escapeHtml(msg.replyTo.username) + '</span>' +
+                        '<span class="msg-reply-text">' + escapeHtml(msg.replyTo.text) + '</span>' +
+                    '</div>';
+                }
+
                 row.innerHTML =
                     avatarHtml(msg.avatarUrl, msg.username, 'small') +
-                    '<div class="message">' +
+                    '<div class="message" data-msg-id="' + escapeHtml(String(msg.id || '')) + '">' +
+                        replyHtml +
                         '<div class="msg-user">' + escapeHtml(msg.username) + '</div>' +
                         '<div class="msg-text">' + escapeHtml(msg.text) + '</div>' +
                         '<div class="msg-time">' + timeStr + '</div>' +
                     '</div>';
+
+                // Click the bubble to reply to it. Only meaningful for
+                // messages that have a real id (came from the server).
+                if (msg.id) {
+                    var bubble = row.querySelector('.message');
+                    bubble.style.cursor = 'pointer';
+                    bubble.addEventListener('click', function() {
+                        setReplyTarget(msg);
+                    });
+                }
+
                 return row;
             }
 
@@ -1225,13 +1444,33 @@
                 chatContainer.scrollTop = chatContainer.scrollHeight;
             }
 
+            // ---------- Reply-to-message ----------
+            function setReplyTarget(msg) {
+                replyTarget = { id: msg.id, username: msg.username, text: msg.text };
+                replyBarUser.textContent = msg.username;
+                replyBarText.textContent = msg.text;
+                replyBar.classList.add('open');
+                messageInput.focus();
+            }
+
+            function clearReplyTarget() {
+                replyTarget = null;
+                replyBar.classList.remove('open');
+            }
+
+            replyBarCancel.addEventListener('click', clearReplyTarget);
+
             // ---------- Sending ----------
             function sendMessage() {
                 var text = messageInput.value.trim();
                 if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
 
-                ws.send(JSON.stringify({ type: 'message', room: activeRoom, text: text }));
+                var payload = { type: 'message', room: activeRoom, text: text };
+                if (replyTarget) payload.replyTo = replyTarget;
+
+                ws.send(JSON.stringify(payload));
                 messageInput.value = '';
+                clearReplyTarget();
                 messageInput.focus();
             }
 
@@ -1240,6 +1479,9 @@
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     sendMessage();
+                }
+                if (e.key === 'Escape' && replyTarget) {
+                    clearReplyTarget();
                 }
             });
 
@@ -1350,7 +1592,7 @@
                 if (window.innerWidth <= 720) closeSidebar();
             }
 
-            
+            // ---------- Init: try auto-login via stored token ----------
             (async function init() {
                 var stored = getStoredToken();
                 if (!stored) {
