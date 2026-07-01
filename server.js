@@ -333,12 +333,14 @@ wss.on('connection', async (ws, req) => {
             type: 'dm_opened',
             room: thread.room,
             with: thread.with,
-            messages: thread.messages
+            messages: thread.messages,
+            online: isUserOnline(thread.with.id)
         }));
     }
 
     broadcastSystem(PUBLIC_ROOM, `${user.username} joined the room`);
     broadcastOnlineCount();
+    notifyDmPartnersOfPresence(user.id, true);
 
     ws.on('pong', () => { ws.isAlive = true; });
 
@@ -355,10 +357,18 @@ wss.on('connection', async (ws, req) => {
                 const text = data.text.trim().substring(0, MAX_MESSAGE_LEN);
                 if (!text) return;
 
+                const replyTo = (data.replyTo && typeof data.replyTo.id !== 'undefined')
+                    ? {
+                        id: data.replyTo.id,
+                        username: String(data.replyTo.username || '').substring(0, 30),
+                        text: String(data.replyTo.text || '').substring(0, 500)
+                    }
+                    : null;
+
                 if (data.room === PUBLIC_ROOM) {
-                    await handlePublicMessage(ws.user, text);
+                    await handlePublicMessage(ws.user, text, replyTo);
                 } else if (data.room && data.room.startsWith('dm:')) {
-                    await handleDmMessage(ws.user, data.room, text);
+                    await handleDmMessage(ws.user, data.room, text, replyTo);
                 }
             } else if (data.type === 'open_dm' && typeof data.username === 'string') {
                 await handleOpenDm(ws, data.username);
@@ -378,6 +388,7 @@ wss.on('connection', async (ws, req) => {
             if (conns.size === 0) {
                 userConnections.delete(user.id);
                 broadcastSystem(PUBLIC_ROOM, `${user.username} left the room`);
+                notifyDmPartnersOfPresence(user.id, false);
             }
         }
         broadcastOnlineCount();
@@ -401,12 +412,15 @@ const heartbeatInterval = setInterval(() => {
 wss.on('close', () => clearInterval(heartbeatInterval));
 
 // --- Message handling ---
-async function handlePublicMessage(user, text) {
+async function handlePublicMessage(user, text, replyTo) {
     const msg = {
         room: PUBLIC_ROOM,
         sender_id: user.id,
         sender_username: user.username,
-        text
+        text,
+        reply_to_id: replyTo ? replyTo.id : null,
+        reply_to_username: replyTo ? replyTo.username : null,
+        reply_to_text: replyTo ? replyTo.text : null
     };
     const { data: saved, error } = await supabase.from('messages').insert(msg).select().single();
     if (error) { console.error('Insert public message error:', error); return; }
@@ -416,15 +430,17 @@ async function handlePublicMessage(user, text) {
     broadcastToSet(publicRoomConnections, {
         type: 'message',
         room: PUBLIC_ROOM,
+        id: saved.id,
         username: saved.sender_username,
         userId: saved.sender_id,
         avatarUrl: user.avatar_url || null,
         text: saved.text,
+        replyTo: replyTo,
         timestamp: new Date(saved.created_at).getTime()
     });
 }
 
-async function handleDmMessage(user, room, text) {
+async function handleDmMessage(user, room, text, replyTo) {
     // room must be dm:<idA>:<idB> and user must be one of the two ids
     const parts = room.split(':');
     if (parts.length !== 3 || ![parts[1], parts[2]].includes(user.id)) return;
@@ -434,7 +450,10 @@ async function handleDmMessage(user, room, text) {
         room,
         sender_id: user.id,
         sender_username: user.username,
-        text
+        text,
+        reply_to_id: replyTo ? replyTo.id : null,
+        reply_to_username: replyTo ? replyTo.username : null,
+        reply_to_text: replyTo ? replyTo.text : null
     };
     const { data: saved, error } = await supabase.from('messages').insert(msg).select().single();
     if (error) { console.error('Insert DM error:', error); return; }
@@ -444,10 +463,12 @@ async function handleDmMessage(user, room, text) {
     const payload = {
         type: 'message',
         room,
+        id: saved.id,
         username: saved.sender_username,
         userId: saved.sender_id,
         avatarUrl: user.avatar_url || null,
         text: saved.text,
+        replyTo: replyTo,
         timestamp: new Date(saved.created_at).getTime()
     };
 
@@ -476,8 +497,24 @@ async function handleOpenDm(ws, targetUsername) {
         type: 'dm_opened',
         room,
         with: { id: target.id, username: target.username, avatar_url: target.avatar_url },
-        messages: history
+        messages: history,
+        online: isUserOnline(target.id)
     }));
+}
+
+// --- Presence helpers ---
+function isUserOnline(userId) {
+    const conns = userConnections.get(userId);
+    return !!conns && conns.size > 0;
+}
+
+// When a user connects/disconnects, tell everyone they currently have an
+// open DM thread with, so their sidebar status dot updates live.
+async function notifyDmPartnersOfPresence(userId, online) {
+    const dmThreads = await fetchDmThreadsForUser(userId);
+    dmThreads.forEach(thread => {
+        sendToUser(thread.with.id, { type: 'presence', userId, online });
+    });
 }
 
 function relayTyping(user, room) {
@@ -536,7 +573,7 @@ async function fetchDmThreadsForUser(userId) {
 async function fetchHistory(room, limit) {
     const { data, error } = await supabase
         .from('messages')
-        .select('sender_id, sender_username, text, created_at')
+        .select('id, sender_id, sender_username, text, reply_to_id, reply_to_username, reply_to_text, created_at')
         .eq('room', room)
         .order('created_at', { ascending: false })
         .limit(limit);
@@ -549,10 +586,12 @@ async function fetchHistory(room, limit) {
     const avatarMap = new Map((users || []).map(u => [u.id, u.avatar_url]));
 
     return data.reverse().map(m => ({
+        id: m.id,
         username: m.sender_username,
         userId: m.sender_id,
         avatarUrl: avatarMap.get(m.sender_id) || null,
         text: m.text,
+        replyTo: m.reply_to_id ? { id: m.reply_to_id, username: m.reply_to_username, text: m.reply_to_text } : null,
         timestamp: new Date(m.created_at).getTime()
     }));
 }
